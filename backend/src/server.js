@@ -64,8 +64,8 @@ app.use('/api/knowledge', authMiddleware, knowledgeRoutes);
 // Error handling
 app.use(errorHandler);
 
-// Start server
-const server = app.listen(config.port, () => {
+// Start server  
+const server = app.listen(config.port, '0.0.0.0', () => {
   logger.info(`Voice Agent API server running on port ${config.port}`);
   logger.info(`Environment: ${config.nodeEnv}`);
 });

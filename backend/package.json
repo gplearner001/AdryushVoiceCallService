@@ -1,9 +1,8 @@
 {
-  "name": "voice-agent-api",
+  "name": "voice-agent-backend",
   "version": "1.0.0",
-  "description": "Web service API for voice agent with Twilio SIP, AssemblyAI, PipeCat, and Claude",
+  "description": "Express.js backend API for voice agent with Twilio SIP, AssemblyAI, PipeCat, and Claude",
   "main": "src/server.js",
-  "private": true,
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",

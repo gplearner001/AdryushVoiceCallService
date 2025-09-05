@@ -36,10 +36,10 @@ const config = {
   // CORS
   allowedOrigins: process.env.ALLOWED_ORIGINS ? 
     process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:3000', 'http://localhost:5173'],
+    ['http://localhost:3000', 'http://localhost:5173', 'https://your-vercel-app.vercel.app'],
   
   // Webhook configuration
-  webhookBaseUrl: process.env.WEBHOOK_BASE_URL || process.env.NGROK_URL || 'https://your-ngrok-url.ngrok.io'
+  webhookBaseUrl: process.env.WEBHOOK_BASE_URL || process.env.NGROK_URL || 'https://your-render-app.onrender.com'
 };
 
 // Validate required environment variables

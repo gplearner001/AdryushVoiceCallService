@@ -1,142 +1,92 @@
-# Voice Agent Web Service API
+# Voice Agent System
 
-A comprehensive web service API for managing outbound voice calls with AI-powered conversation capabilities using Twilio SIP trunking, AssemblyAI voice models, PipeCat conversation management, and Anthropic Claude LLM.
-
-## Features
-
-- **Outbound Calling**: Initiate phone calls via Twilio SIP trunking
-- **AI Voice**: Custom voice synthesis using AssemblyAI models
-- **Conversation Management**: Real-time conversation flow with PipeCat
-- **Knowledge Base**: Query-based responses using Anthropic Claude
-- **Real-time Communication**: WebSocket support for live audio streaming
-- **Production Ready**: Comprehensive logging, error handling, and security
-
-## API Endpoints
-
-### Calls
-- `POST /api/calls/initiate` - Initiate an outbound call
-- `GET /api/calls/:callId/status` - Get call status
-- `POST /api/calls/:callId/end` - End an active call
-
-### Voice
-- `POST /api/voice/synthesize` - Convert text to speech
-- `POST /api/voice/transcribe` - Convert speech to text
-- `POST /api/voice/generate-response` - Generate AI response
-
-### Knowledge Base
-- `POST /api/knowledge/bases` - Create a knowledge base
-- `GET /api/knowledge/bases` - List knowledge bases
-- `POST /api/knowledge/bases/:id/query` - Query knowledge base
-
-### WebSocket
-- `ws://localhost:3000/ws/voice/:callId` - Real-time voice communication
-
-## Setup
-
-1. Copy `.env.example` to `.env` and configure your API keys:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Configure the following services:
-   - **Twilio**: Account SID, Auth Token, Phone Number, SIP Domain
-   - **AssemblyAI**: API Key for voice synthesis and transcription
-   - **Anthropic**: API Key for Claude LLM
-   - **PipeCat**: API Key and endpoint (if using hosted version)
-   - **Webhooks**: For production, set WEBHOOK_BASE_URL to your public domain
-
-3. **For Development Testing**: 
-   - The system will work with localhost for basic call testing
-   - For full webhook functionality, use ngrok or similar tunneling service:
-     ```bash
-     # Install ngrok: https://ngrok.com/download
-     ngrok http 3000
-     # Copy the https URL to NGROK_URL in your .env file
-     ```
-
-4. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-5. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Usage Examples
-
-### Initiate a Call
-```bash
-curl -X POST http://localhost:3000/api/calls/initiate \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "phoneNumber": "+1234567890",
-    "knowledgeBaseId": "kb_123",
-    "customPrompt": "You are a helpful customer service agent",
-    "voiceConfig": {
-      "model": "neural",
-      "speed": 1.0,
-      "pitch": 0
-    }
-  }'
-```
-
-### Create Knowledge Base
-```bash
-curl -X POST http://localhost:3000/api/knowledge/bases \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "name": "Customer Support KB",
-    "description": "Knowledge base for customer support",
-    "documents": [
-      {
-        "title": "Product Information",
-        "content": "Our products include...",
-        "metadata": {"category": "products"}
-      }
-    ]
-  }'
-```
+A comprehensive voice agent system with AI-powered conversation capabilities, split into separate frontend and backend applications for easy deployment.
 
 ## Architecture
 
-The application follows a modular architecture:
+- **Frontend**: Next.js dashboard deployed on Vercel
+- **Backend**: Express.js API deployed on Render
 
-- **Routes**: Handle HTTP endpoints and request validation
-- **Services**: Encapsulate business logic for each integration
-- **WebSocket**: Real-time communication for voice streaming
-- **Middleware**: Authentication, error handling, and logging
-- **Utils**: Helper functions and validation schemas
+## Quick Start
 
-## Security
+### Backend (Express.js API)
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Configure your API keys in .env
+npm run dev
+```
 
-- API key authentication for all endpoints
-- Rate limiting to prevent abuse
-- CORS configuration for cross-origin requests
-- Helmet.js for security headers
-- Input validation with Joi schemas
-
-## Monitoring
-
-- Comprehensive logging with Winston
-- Health check endpoint at `/health`
-- Error tracking and reporting
-- Performance metrics
+### Frontend (Next.js Dashboard)
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+# Set NEXT_PUBLIC_API_URL to your backend URL
+npm run dev
+```
 
 ## Deployment
 
-The service is ready for production deployment with:
-- Environment-based configuration
-- Graceful shutdown handling
-- Process monitoring support
-- Scalable architecture
+### Backend on Render
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Set root directory to `backend`
+4. Configure environment variables (see backend/README.md)
+5. Deploy
 
-## Contributing
+### Frontend on Vercel
+1. Connect your GitHub repository to Vercel
+2. Set root directory to `frontend`
+3. Set `NEXT_PUBLIC_API_URL` to your Render backend URL
+4. Deploy
 
-1. Follow the existing code structure
-2. Add tests for new features
-3. Update documentation
-4. Ensure proper error handling
+## Environment Variables
+
+### Backend (.env)
+```env
+PORT=3001
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
+ASSEMBLYAI_API_KEY=your_assemblyai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+API_KEY=your_secure_api_key
+WEBHOOK_BASE_URL=https://your-backend.onrender.com
+ALLOWED_ORIGINS=https://your-frontend.vercel.app
+```
+
+### Frontend (.env.local)
+```env
+NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+```
+
+## Features
+
+### Backend API
+- Outbound calling via Twilio
+- AI voice synthesis with AssemblyAI
+- Conversation management with Claude LLM
+- Knowledge base system
+- WebSocket support
+- Comprehensive logging and monitoring
+
+### Frontend Dashboard
+- Real-time API status monitoring
+- Call management interface
+- Knowledge base visualization
+- Responsive design
+
+## API Documentation
+
+See `backend/docs/` for comprehensive API documentation and testing examples.
+
+## Testing
+
+Use the Postman collection in `backend/postman/` for API testing.
+
+## Support
+
+- Backend API: See `backend/README.md`
+- Frontend Dashboard: See `frontend/README.md`
