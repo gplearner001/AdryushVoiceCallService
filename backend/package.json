@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "dev:port": "PORT=9000 nodemon src/server.js",
     "test": "jest"
   },
   "dependencies": {

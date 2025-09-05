@@ -20,7 +20,7 @@ Go to your collection → Variables tab and add:
 
 | Variable | Initial Value | Current Value |
 |----------|---------------|---------------|
-| `baseUrl` | `http://localhost:3000` | `http://localhost:3000` |
+| `baseUrl` | `http://localhost:9000` | `http://localhost:9000` |
 | `apiKey` | `your-api-key-here` | `your-api-key-here` |
 
 Replace `your-api-key-here` with the actual API key from your `.env` file.
@@ -263,7 +263,7 @@ PORT=3000
 NODE_ENV=development
 
 # API Security
-API_KEY=test-api-key-12345
+API_KEY=a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
 
 # Twilio Configuration (use your actual values)
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

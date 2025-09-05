@@ -60,13 +60,14 @@ async function handleTwilioGather(req, res) {
   try {
     // Handle both POST body and GET query parameters
     const data = req.method === 'POST' ? req.body : req.query;
-    const { CallSid, Digits, SpeechResult } = data;
+    const { CallSid, Digits, SpeechResult, callId } = { ...data, ...req.query };
     
     logger.info('Twilio gather webhook received', {
       callSid: CallSid,
       digits: Digits,
       speechResult: SpeechResult,
-      method: req.method
+      method: req.method,
+      originalCallId: callId
     });
 
     const VoiceResponse = require('twilio').twiml.VoiceResponse;
@@ -80,13 +81,37 @@ async function handleTwilioGather(req, res) {
     }
 
     if (userInput) {
-      // Find call session and generate response
-      const callSession = await callManager.getSessionByTwilioSid(CallSid);
+      // Find call session - try original callId first, then Twilio SID
+      let callSession = null;
+      if (callId) {
+        callSession = await callManager.getSession(callId);
+        logger.info('Found session by original callId', { callId, found: !!callSession });
+      }
+      
+      if (!callSession) {
+        callSession = await callManager.getSessionByTwilioSid(CallSid);
+        logger.info('Found session by Twilio SID', { CallSid, found: !!callSession });
+      }
       
       if (callSession) {
         try {
           const ClaudeService = require('../services/claudeService');
           const claudeService = new ClaudeService();
+          
+          if (!callSession) {
+            logger.error('Call session not found for Twilio SID', { CallSid });
+            
+            // Use fallback response when no session found
+            twiml.say({
+              voice: 'Polly.Joanna'
+            }, 'I apologize, but I\'m having trouble accessing your session information. Please try calling back.');
+            twiml.hangup();
+            
+            res.type('text/xml');
+            res.send(twiml.toString());
+            return;
+          }
+          
           const response = await claudeService.generateResponse({
             message: userInput,
             context: callSession.conversationHistory,
@@ -95,8 +120,8 @@ async function handleTwilioGather(req, res) {
           });
 
           // Add to conversation history
-          await callManager.addConversationMessage(CallSid, 'user', userInput);
-          await callManager.addConversationMessage(CallSid, 'assistant', response.content);
+          await callManager.addConversationMessage(callSession.callId, 'user', userInput);
+          await callManager.addConversationMessage(callSession.callId, 'assistant', response.content);
 
           // Respond with AI-generated content
           twiml.say({
@@ -109,7 +134,7 @@ async function handleTwilioGather(req, res) {
             input: 'speech dtmf',
             timeout: 15,
             speechTimeout: 'auto',
-            action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather`,
+            action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather?callId=${callSession.callId}`,
             method: 'POST'
           });
           
@@ -126,53 +151,53 @@ async function handleTwilioGather(req, res) {
         } catch (error) {
           logger.error('Error generating AI response:', error);
           
-          // Use fallback response when Claude API fails
-          const claudeServiceInstance = new ClaudeService();
-          const fallbackResponse = claudeServiceInstance.generateFallbackResponse(userInput);
-          logger.warn('Using fallback response due to Claude API error', {
-            originalMessage: userInput,
-            fallbackResponse
-          });
-          
-          twiml.say({
-            voice: 'Polly.Joanna'
-          }, fallbackResponse);
-          
-          // Try to continue the conversation even after an error
-          const gather = twiml.gather({
-            input: 'speech dtmf',
-            timeout: 10,
-            speechTimeout: 'auto',
-            action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather`,
-            method: 'POST'
-          });
-          
-          gather.say({
-            voice: 'Polly.Joanna'
-          }, 'Please try asking your question again.');
-          
-          twiml.say({
-            voice: 'Polly.Joanna'
-          }, 'Thank you for calling. Goodbye!');
-          twiml.hangup();
+          if (callSession) {
+            // Use fallback response when Claude API fails
+            const claudeServiceInstance = new ClaudeService();
+            const fallbackResponse = claudeServiceInstance.generateFallbackResponse(userInput);
+            logger.warn('Using fallback response due to Claude API error', {
+              originalMessage: userInput,
+              fallbackResponse,
+              knowledgeBaseId: callSession.knowledgeBaseId
+            });
+            
+            twiml.say({
+              voice: 'Polly.Joanna'
+            }, fallbackResponse);
+            
+            // Try to continue the conversation even after an error
+            const gather = twiml.gather({
+              input: 'speech dtmf',
+              timeout: 10,
+              speechTimeout: 'auto',
+              action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather?callId=${callSession.callId}`,
+              method: 'POST'
+            });
+            
+            gather.say({
+              voice: 'Polly.Joanna'
+            }, 'Please try asking your question again.');
+            
+            twiml.say({
+              voice: 'Polly.Joanna'
+            }, 'Thank you for calling. Goodbye!');
+            twiml.hangup();
+          } else {
+            // No session found, end call
+            twiml.say({
+              voice: 'Polly.Joanna'
+            }, 'I apologize for the technical difficulty. Please try calling back. Goodbye.');
+            twiml.hangup();
+          }
         }
       } else {
         // Default response if no session found
+        logger.error('No call session found for user input', { CallSid, userInput });
+        
         twiml.say({
           voice: 'Polly.Joanna'
-        }, 'Thank you for your input. How else can I help you?');
-        
-        const gather = twiml.gather({
-          input: 'speech dtmf',
-          timeout: 10,
-          speechTimeout: 'auto',
-          action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather`,
-          method: 'POST'
-        });
-        
-        gather.say({
-          voice: 'Polly.Joanna'
-        }, 'Please tell me what you need help with.');
+        }, 'I apologize, but I\'m having trouble accessing your session. Please try calling back.');
+        twiml.hangup();
       }
     } else {
       twiml.say({
@@ -184,13 +209,18 @@ async function handleTwilioGather(req, res) {
         input: 'speech dtmf',
         timeout: 10,
         speechTimeout: 'auto',
-        action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather`,
+        action: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/gather?callId=${callId || CallSid}`,
         method: 'POST'
       });
       
       gather.say({
         voice: 'Polly.Joanna'
       }, 'Please speak clearly and tell me how I can assist you.');
+      
+      twiml.say({
+        voice: 'Polly.Joanna'
+      }, 'Thank you for calling. Goodbye!');
+      twiml.hangup();
     }
 
     res.type('text/xml');

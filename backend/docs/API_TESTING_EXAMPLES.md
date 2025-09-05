@@ -7,21 +7,21 @@
 # Start the server
 npm run dev
 
-# The server will run on http://localhost:3000
+# The server will run on http://localhost:9000
 ```
 
 ### 2. Test with cURL
 
 #### Health Check
 ```bash
-curl -X GET http://localhost:3000/health
+curl -X GET http://localhost:9000/health
 ```
 
 #### Create Knowledge Base
 ```bash
-curl -X POST http://localhost:3000/api/knowledge/bases \
+curl -X POST http://localhost:9000/api/knowledge/bases \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: test-api-key-12345" \
+  -H "X-API-Key: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456" \
   -d '{
     "name": "Test KB",
     "description": "Test knowledge base",
@@ -37,9 +37,9 @@ curl -X POST http://localhost:3000/api/knowledge/bases \
 
 #### Initiate Call
 ```bash
-curl -X POST http://localhost:3000/api/calls/initiate \
+curl -X POST http://localhost:9000/api/calls/initiate \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: test-api-key-12345" \
+  -H "X-API-Key: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456" \
   -d '{
     "phoneNumber": "+1234567890",
     "customPrompt": "You are a helpful assistant",
@@ -57,8 +57,8 @@ Create these variables in your Postman environment:
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `baseUrl` | `http://localhost:3000` | API base URL |
-| `apiKey` | `test-api-key-12345` | Your API key |
+| `baseUrl` | `http://localhost:9000` | API base URL |
+| `apiKey` | `a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456` | Your API key |
 | `testPhoneNumber` | `+1234567890` | Test phone number |
 
 ## Testing Phone Numbers

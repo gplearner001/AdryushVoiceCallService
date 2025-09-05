@@ -13,23 +13,27 @@ class CallManager {
         phoneNumber,
         knowledgeBaseId,
         customPrompt,
-        voiceConfig,
+        voiceConfig: voiceConfig || {
+          model: 'neural',
+          speed: 1.0,
+          pitch: 0
+        },
         status: 'initiated',
+        conversationHistory: [],
         startTime: new Date(),
         endTime: null,
-        twilioCallSid: null,
-        conversationHistory: []
+        twilioCallSid: null
       };
 
       this.activeSessions.set(callId, session);
 
       logger.info('Call session created', {
         callId,
-        phoneNumber: phoneNumber.substring(0, 5) + '***'
+        phoneNumber: phoneNumber.substring(0, 5) + '***',
+        knowledgeBaseId
       });
 
       return session;
-
     } catch (error) {
       logger.error('Failed to create call session:', error);
       throw new Error(`Session creation failed: ${error.message}`);
@@ -37,55 +41,37 @@ class CallManager {
   }
 
   async getSession(callId) {
-    return this.activeSessions.get(callId);
+    return this.activeSessions.get(callId) || null;
   }
 
-  async getSessionByTwilioSid(twilioCallSid) {
-    for (const [callId, session] of this.activeSessions) {
-      if (session.twilioCallSid === twilioCallSid) {
+  async getSessionByTwilioSid(twilioSid) {
+    for (const session of this.activeSessions.values()) {
+      if (session.twilioCallSid === twilioSid) {
         return session;
       }
     }
-    
-    // If no session found, create a basic one for webhook handling
-    logger.warn('No session found for Twilio SID, creating basic session', { twilioCallSid });
-    
-    const basicSession = {
-      callId: twilioCallSid,
-      twilioCallSid,
-      status: 'active',
-      conversationHistory: [],
-      knowledgeBaseId: null,
-      customPrompt: 'You are a helpful assistant.',
-      voiceConfig: { model: 'neural', speed: 1.0, pitch: 0 }
-    };
-    
-    this.activeSessions.set(twilioCallSid, basicSession);
-    return basicSession;
+    return null;
+  }
+
+  async updateTwilioSid(callId, twilioSid) {
+    const session = this.activeSessions.get(callId);
+    if (session) {
+      session.twilioCallSid = twilioSid;
+      logger.info('Updated Twilio SID for session', { callId, twilioSid });
+    }
   }
 
   async updateSessionStatus(callId, status) {
     const session = this.activeSessions.get(callId);
     if (session) {
       session.status = status;
+      session.lastActivity = new Date();
       
-      if (status === 'active' && !session.activeStartTime) {
-        session.activeStartTime = new Date();
+      if (status === 'completed' || status === 'ended') {
+        session.endTime = new Date();
       }
 
-      logger.info('Call session status updated', { callId, status });
-    }
-  }
-
-  async updateTwilioSid(callId, twilioCallSid) {
-    const session = this.activeSessions.get(callId);
-    if (session) {
-      session.twilioCallSid = twilioCallSid;
-      
-      // Also store by Twilio SID for webhook lookups
-      this.activeSessions.set(twilioCallSid, session);
-      
-      logger.info('Twilio SID updated for session', { callId, twilioCallSid });
+      logger.info('Session status updated', { callId, status });
     }
   }
 
@@ -97,6 +83,20 @@ class CallManager {
         content,
         timestamp: new Date()
       });
+
+      // Keep only last 50 messages to prevent memory issues
+      if (session.conversationHistory.length > 50) {
+        session.conversationHistory = session.conversationHistory.slice(-50);
+      }
+
+      session.lastActivity = new Date();
+      
+      logger.debug('Added conversation message', {
+        callId,
+        role,
+        messageLength: content.length,
+        totalMessages: session.conversationHistory.length
+      });
     }
   }
 
@@ -106,34 +106,63 @@ class CallManager {
       session.status = 'ended';
       session.endTime = new Date();
       
-      const duration = session.endTime - session.startTime;
-
+      const duration = session.endTime.getTime() - session.startTime.getTime();
+      
       logger.info('Call session ended', {
         callId,
-        duration,
+        duration: Math.round(duration / 1000) + 's',
         messageCount: session.conversationHistory.length
       });
 
-      // Keep session for a while for potential queries
+      // Keep session for a while for status queries, then clean up
       setTimeout(() => {
         this.activeSessions.delete(callId);
-      }, 300000); // 5 minutes
+        logger.debug('Session cleaned up', { callId });
+      }, 5 * 60 * 1000); // 5 minutes
     }
   }
 
-  getActiveSessions() {
-    return Array.from(this.activeSessions.values())
-      .filter(session => session.status === 'active');
+  async getAllActiveSessions() {
+    return Array.from(this.activeSessions.values()).filter(
+      session => session.status !== 'ended' && session.status !== 'completed'
+    );
   }
 
-  getSessionStats() {
-    const sessions = Array.from(this.activeSessions.values());
-    
+  async getSessionStats(callId) {
+    const session = this.activeSessions.get(callId);
+    if (!session) return null;
+
+    const now = new Date();
+    const duration = session.endTime ? 
+      session.endTime.getTime() - session.startTime.getTime() :
+      now.getTime() - session.startTime.getTime();
+
     return {
-      total: sessions.length,
-      active: sessions.filter(s => s.status === 'active').length,
-      ended: sessions.filter(s => s.status === 'ended').length
+      callId,
+      status: session.status,
+      duration: Math.round(duration / 1000),
+      messageCount: session.conversationHistory.length,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      lastActivity: session.lastActivity || session.startTime
     };
+  }
+
+  // Cleanup old sessions periodically
+  startCleanupTimer() {
+    setInterval(() => {
+      const now = new Date();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+      for (const [callId, session] of this.activeSessions.entries()) {
+        const age = now.getTime() - session.startTime.getTime();
+        
+        if (age > maxAge) {
+          this.activeSessions.delete(callId);
+          logger.info('Cleaned up old session', { callId, age: Math.round(age / 1000 / 60) + 'm' });
+        }
+      }
+    }, 60 * 60 * 1000); // Run every hour
   }
 }
 

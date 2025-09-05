@@ -1,5 +1,5 @@
 const config = {
-  port: process.env.PORT || 3000,
+  port: process.env.PORT || 9000,
   nodeEnv: process.env.NODE_ENV || 'development',
   
   // Twilio configuration

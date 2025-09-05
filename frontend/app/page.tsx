@@ -24,8 +24,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  const API_KEY = 'test-api-key-12345'; // In production, use environment variable
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
+  const API_KEY = 'a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456'; // In production, use environment variable
 
   useEffect(() => {
     checkApiStatus();
@@ -69,10 +69,10 @@ export default function Dashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': 'a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456',
+          'X-API-Key': API_KEY,
         },
         body: JSON.stringify({
-          phoneNumber: '+916360154904',
+          phoneNumber: '+1234567890',
           knowledgeBaseId: knowledgeBases[0]?.id,
           customPrompt: 'You are a helpful customer service representative.',
           voiceConfig: {

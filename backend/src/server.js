@@ -15,6 +15,7 @@ const callRoutes = require('./routes/calls');
 const voiceRoutes = require('./routes/voice');
 const webhookRoutes = require('./routes/webhooks');
 const knowledgeRoutes = require('./routes/knowledge');
+const testingRoutes = require('./routes/testing');
 
 // WebSocket setup
 const { setupWebSocket } = require('./websocket/handler');
@@ -60,6 +61,7 @@ app.use('/api/calls', authMiddleware, callRoutes);
 app.use('/api/voice', authMiddleware, voiceRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/knowledge', authMiddleware, knowledgeRoutes);
+app.use('/api/testing', authMiddleware, testingRoutes);
 
 // Error handling
 app.use(errorHandler);
