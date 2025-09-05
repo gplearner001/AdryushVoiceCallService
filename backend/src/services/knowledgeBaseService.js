@@ -81,7 +81,8 @@ class KnowledgeBaseService {
       const knowledgeBase = this.knowledgeBases.get(knowledgeBaseId);
       
       if (!knowledgeBase) {
-        throw new Error('Knowledge base not found');
+        logger.warn('Knowledge base not found', { knowledgeBaseId });
+        return []; // Return empty results instead of throwing error
       }
 
       logger.info('Querying knowledge base', {
@@ -127,8 +128,12 @@ class KnowledgeBaseService {
         .slice(0, maxResults);
 
     } catch (error) {
+      if (error.message === 'Knowledge base not found') {
+        logger.warn('Knowledge base not found, returning empty results', { knowledgeBaseId });
+        return [];
+      }
       logger.error('Failed to query knowledge base:', error);
-      throw new Error(`Knowledge base query failed: ${error.message}`);
+      return []; // Return empty results instead of throwing error
     }
   }
 

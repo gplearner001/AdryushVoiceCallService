@@ -50,18 +50,26 @@ class ClaudeService {
       }
 
       if (knowledgeBaseId) {
-        const knowledgeContext = await this.knowledgeBaseService.queryKnowledgeBase(
-          knowledgeBaseId,
-          message,
-          3
-        );
+        try {
+          const knowledgeContext = await this.knowledgeBaseService.queryKnowledgeBase(
+            knowledgeBaseId,
+            message,
+            3
+          );
 
-        if (knowledgeContext.length > 0) {
-          const contextText = knowledgeContext
-            .map(item => item.content)
-            .join('\n\n');
+          if (knowledgeContext.length > 0) {
+            const contextText = knowledgeContext
+              .map(item => item.content)
+              .join('\n\n');
 
-          systemPrompt += `\n\nRelevant information from knowledge base:\n${contextText}`;
+            systemPrompt += `\n\nRelevant information from knowledge base:\n${contextText}`;
+          }
+        } catch (error) {
+          logger.warn('Knowledge base query failed, continuing without context', {
+            knowledgeBaseId,
+            error: error.message
+          });
+          // Continue without knowledge base context
         }
       }
 
