@@ -4,11 +4,9 @@ const Joi = require('joi');
 const { v4: uuidv4 } = require('uuid');
 
 const ClaudeService = require('../services/claudeService');
-const KnowledgeBaseService = require('../services/knowledgeBaseService');
 const logger = require('../utils/logger');
 
 const claudeService = new ClaudeService();
-const knowledgeBaseService = new KnowledgeBaseService();
 
 // In-memory session storage for testing
 const testingSessions = new Map();
@@ -80,6 +78,14 @@ router.post('/chat', async (req, res) => {
       customPrompt
     });
 
+    logger.info('AI response generated for testing', {
+      sessionId,
+      knowledgeBaseId,
+      knowledgeBaseUsed: response.knowledgeBaseUsed,
+      knowledgeResults: response.knowledgeResults,
+      responseLength: response.content.length
+    });
+
     // Add to conversation history
     session.conversationHistory.push(
       { role: 'user', content: message },
@@ -96,7 +102,9 @@ router.post('/chat', async (req, res) => {
       sessionId,
       response: response.content,
       usage: response.usage,
-      conversationLength: session.conversationHistory.length
+      conversationLength: session.conversationHistory.length,
+      knowledgeBaseUsed: response.knowledgeBaseUsed,
+      knowledgeResults: response.knowledgeResults
     });
 
   } catch (error) {

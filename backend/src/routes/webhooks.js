@@ -98,25 +98,19 @@ async function handleTwilioGather(req, res) {
           const ClaudeService = require('../services/claudeService');
           const claudeService = new ClaudeService();
           
-          if (!callSession) {
-            logger.error('Call session not found for Twilio SID', { CallSid });
-            
-            // Use fallback response when no session found
-            twiml.say({
-              voice: 'Polly.Joanna'
-            }, 'I apologize, but I\'m having trouble accessing your session information. Please try calling back.');
-            twiml.hangup();
-            
-            res.type('text/xml');
-            res.send(twiml.toString());
-            return;
-          }
-          
           const response = await claudeService.generateResponse({
             message: userInput,
             context: callSession.conversationHistory,
             knowledgeBaseId: callSession.knowledgeBaseId,
             customPrompt: callSession.customPrompt
+          });
+
+          logger.info('AI response generated for call', {
+            callId: callSession.callId,
+            knowledgeBaseId: callSession.knowledgeBaseId,
+            knowledgeBaseUsed: response.knowledgeBaseUsed,
+            knowledgeResults: response.knowledgeResults,
+            responseLength: response.content.length
           });
 
           // Add to conversation history

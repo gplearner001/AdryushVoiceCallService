@@ -72,7 +72,7 @@ export default function Dashboard() {
           'X-API-Key': API_KEY,
         },
         body: JSON.stringify({
-          phoneNumber: '+1234567890',
+          phoneNumber: '+916360154904',
           knowledgeBaseId: knowledgeBases[0]?.id,
           customPrompt: 'You are a helpful customer service representative.',
           voiceConfig: {

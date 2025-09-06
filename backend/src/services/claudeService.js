@@ -1,6 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const config = require('../config/config');
-const KnowledgeBaseService = require('./knowledgeBaseService');
 const logger = require('../utils/logger');
 
 class ClaudeService {
@@ -21,18 +20,20 @@ class ClaudeService {
       logger.warn('Anthropic API key not provided - Claude features will use fallback responses');
     }
 
-    this.knowledgeBaseService = new KnowledgeBaseService();
-
     // Define model priority (best → fallback)
     this.availableModels = [
-      "claude-opus-4-1-20250805",  // Best quality
-      "claude-sonnet-4-20250514",  // Balanced speed & cost
-      "claude-3-5-haiku-20241022"  // Fastest & cheapest
+      "claude-3-5-sonnet-20241022",    // Latest Sonnet
+      "claude-3-sonnet-20240229",      // Stable Sonnet
+      "claude-3-haiku-20240307"        // Fastest & cheapest
     ];
   }
 
   async generateResponse({ message, context = [], knowledgeBaseId, customPrompt }) {
     try {
+      // Get singleton instance of knowledge base service
+      const KnowledgeBaseService = require('./knowledgeBaseService');
+      const knowledgeBaseService = new KnowledgeBaseService();
+
       if (!this.anthropic) {
         logger.warn('Claude API not available, using fallback response');
         return {
@@ -49,27 +50,54 @@ class ClaudeService {
         systemPrompt += `\n\nAdditional instructions: ${customPrompt}`;
       }
 
+      let knowledgeContext = [];
       if (knowledgeBaseId) {
         try {
-          const knowledgeContext = await this.knowledgeBaseService.queryKnowledgeBase(
+          logger.info('Querying knowledge base for context', { 
+            knowledgeBaseId,
+            message: message.substring(0, 50) + '...',
+            knowledgeBaseDebug: knowledgeBaseService.getDebugInfo()
+          });
+
+          knowledgeContext = await knowledgeBaseService.queryKnowledgeBase(
             knowledgeBaseId,
             message,
-            3
+            5
           );
+
+          logger.info('Knowledge base query result', {
+            knowledgeBaseId,
+            resultsFound: knowledgeContext.length,
+            hasResults: knowledgeContext.length > 0
+          });
 
           if (knowledgeContext.length > 0) {
             const contextText = knowledgeContext
-              .map(item => item.content)
+              .map(item => `${item.title}: ${item.content}`)
               .join('\n\n');
 
-            systemPrompt += `\n\nRelevant information from knowledge base:\n${contextText}`;
+            systemPrompt += `\n\nRelevant information from knowledge base (use this to answer the user's question):\n${contextText}`;
+            
+            systemPrompt += `\n\nIMPORTANT: Base your response primarily on the knowledge base information provided above. If the user's question relates to the information in the knowledge base, use that information to provide a helpful and accurate answer.`;
+
+            logger.info('Added knowledge base context to system prompt', {
+              knowledgeBaseId,
+              contextLength: contextText.length,
+              resultsUsed: knowledgeContext.length
+            });
+          } else {
+            logger.warn('No relevant knowledge base results found', {
+              knowledgeBaseId,
+              query: message
+            });
+            systemPrompt += `\n\nNote: No specific information was found in the knowledge base for this query. Provide a helpful general response and suggest how the user might get more specific information.`;
           }
         } catch (error) {
           logger.warn('Knowledge base query failed, continuing without context', {
             knowledgeBaseId,
             error: error.message
           });
-          // Continue without knowledge base context
+          systemPrompt += `\n\nNote: Unable to access knowledge base at this time. Provide a helpful general response.`;
         }
       }
 
@@ -87,7 +115,9 @@ class ClaudeService {
       logger.info('Generating Claude response', {
         messageLength: message.length,
         contextLength: context.length,
-        knowledgeBaseId
+        knowledgeBaseId,
+        hasKnowledgeContext: knowledgeContext.length > 0,
+        systemPromptLength: systemPrompt.length
       });
 
       let lastError = null;
@@ -106,13 +136,16 @@ class ClaudeService {
           logger.info('Claude response generated', {
             responseLength: content.length,
             usage: response.usage,
-            model
+            model,
+            usedKnowledgeBase: knowledgeBaseId && knowledgeContext.length > 0
           });
 
           return {
             content,
             usage: response.usage,
-            model
+            model,
+            knowledgeBaseUsed: knowledgeBaseId && knowledgeContext.length > 0,
+            knowledgeResults: knowledgeContext.length
           };
         } catch (error) {
           logger.error(`Model ${model} failed:`, error.message || error);
@@ -123,8 +156,10 @@ class ClaudeService {
       // If all models fail
       logger.error('All Claude models failed, using fallback response', lastError);
       return {
-        content: this.generateFallbackResponse(message),
-        usage: { input_tokens: 0, output_tokens: 0 }
+        content: this.generateFallbackResponse(message, knowledgeContext),
+        usage: { input_tokens: 0, output_tokens: 0 },
+        knowledgeBaseUsed: knowledgeContext.length > 0,
+        knowledgeResults: knowledgeContext.length
       };
 
     } catch (error) {
@@ -136,9 +171,16 @@ class ClaudeService {
     }
   }
 
-  generateFallbackResponse(message) {
+  generateFallbackResponse(message, knowledgeContext = []) {
     const messageLower = message.toLowerCase();
 
+    // If we have knowledge base context, try to use it
+    if (knowledgeContext && knowledgeContext.length > 0) {
+      const relevantInfo = knowledgeContext[0]; // Use the most relevant result
+      return `Based on our information: ${relevantInfo.content.substring(0, 200)}... Is there anything specific about this you'd like to know more about?`;
+    }
+
+    // Fallback responses when no knowledge base context
     if (messageLower.includes('pricing') || messageLower.includes('price') || messageLower.includes('cost')) {
       return "I'd be happy to help with pricing information. We offer several plans to meet different needs. Would you like me to connect you with our sales team for detailed pricing?";
     }
