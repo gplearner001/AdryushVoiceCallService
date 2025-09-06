@@ -55,11 +55,18 @@ router.post('/initiate', async (req, res) => {
     const twilioCall = await twilioService.initiateCall({
       to: phoneNumber,
       callId,
-      webhookUrl: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/voice`
+      webhookUrl: `${process.env.WEBHOOK_BASE_URL || req.protocol + '://' + req.get('host')}/api/webhooks/twilio/voice`
     });
 
     // Update session with Twilio SID
     await callManager.updateTwilioSid(callId, twilioCall.sid);
+    
+    logger.info('Session linked with Twilio SID', {
+      originalCallId: callId,
+      twilioCallSid: twilioCall.sid,
+      sessionExists: !!(await callManager.getSession(callId)),
+      sessionByTwilioSid: !!(await callManager.getSessionByTwilioSid(twilioCall.sid))
+    });
 
     res.json({
       success: true,

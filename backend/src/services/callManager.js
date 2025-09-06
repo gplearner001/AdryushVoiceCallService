@@ -45,11 +45,36 @@ class CallManager {
   }
 
   async getSessionByTwilioSid(twilioSid) {
+    logger.debug('Looking for session by Twilio SID', { 
+      twilioSid, 
+      totalSessions: this.activeSessions.size,
+      allKeys: Array.from(this.activeSessions.keys())
+    });
+    
+    // First check if we have a direct mapping by Twilio SID
+    const directSession = this.activeSessions.get(twilioSid);
+    if (directSession) {
+      logger.info('Found session by direct Twilio SID lookup', { twilioSid });
+      return directSession;
+    }
+    
+    // If not found, search through all sessions
     for (const session of this.activeSessions.values()) {
       if (session.twilioCallSid === twilioSid) {
+        logger.info('Found session by searching twilioCallSid property', { twilioSid });
         return session;
       }
     }
+    
+    logger.warn('No session found for Twilio SID', { 
+      twilioSid,
+      availableSessions: Array.from(this.activeSessions.entries()).map(([key, session]) => ({
+        key,
+        callId: session.callId,
+        twilioCallSid: session.twilioCallSid
+      }))
+    });
+    
     return null;
   }
 
@@ -57,7 +82,19 @@ class CallManager {
     const session = this.activeSessions.get(callId);
     if (session) {
       session.twilioCallSid = twilioSid;
-      logger.info('Updated Twilio SID for session', { callId, twilioSid });
+      
+      // Store the session under the Twilio SID as well for webhook lookups
+      this.activeSessions.set(twilioSid, session);
+      
+      logger.info('Updated Twilio SID for session', { 
+        callId, 
+        twilioSid,
+        sessionStoredUnderCallId: this.activeSessions.has(callId),
+        sessionStoredUnderTwilioSid: this.activeSessions.has(twilioSid),
+        totalSessions: this.activeSessions.size
+      });
+    } else {
+      logger.error('Cannot update Twilio SID - session not found', { callId, twilioSid });
     }
   }
 
@@ -114,9 +151,18 @@ class CallManager {
         messageCount: session.conversationHistory.length
       });
 
+      // Also remove the Twilio SID mapping if it exists
+      if (session.twilioCallSid) {
+        this.activeSessions.delete(session.twilioCallSid);
+      }
+
       // Keep session for a while for status queries, then clean up
       setTimeout(() => {
         this.activeSessions.delete(callId);
+        // Clean up Twilio SID mapping too
+        if (session.twilioCallSid) {
+          this.activeSessions.delete(session.twilioCallSid);
+        }
         logger.debug('Session cleaned up', { callId });
       }, 5 * 60 * 1000); // 5 minutes
     }

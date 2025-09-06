@@ -87,7 +87,7 @@ class TwilioService {
       input: 'speech dtmf',
       timeout: 15,
       speechTimeout: 'auto',
-      action: `${config.webhookBaseUrl}/api/webhooks/twilio/gather?callId=${callId}`,
+      action: `${config.webhookBaseUrl}/api/webhooks/twilio/gather`,
       method: 'POST'
     });
     
@@ -107,7 +107,7 @@ class TwilioService {
       input: 'speech dtmf',
       timeout: 10,
       speechTimeout: 'auto',
-      action: `${config.webhookBaseUrl}/api/webhooks/twilio/gather?callId=${callId}`,
+      action: `${config.webhookBaseUrl}/api/webhooks/twilio/gather`,
       method: 'POST'
     });
     
