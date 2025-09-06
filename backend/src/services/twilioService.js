@@ -79,7 +79,7 @@ class TwilioService {
     // Say initial greeting
     twiml.say(
       { voice: 'Polly.Joanna' }, 
-      'Hello! I am your AI assistant. I have access to information about our products, pricing, and support. How can I help you today?'
+      'Hello'
     );
 
     // Gather input from user
