@@ -24,6 +24,9 @@ export default function RootLayout({
                 <a href="/" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">
                   Dashboard
                 </a>
+                <a href="/knowledge" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">
+                  Knowledge Bases
+                </a>
                 <a href="/testing" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">
                   Testing
                 </a>
