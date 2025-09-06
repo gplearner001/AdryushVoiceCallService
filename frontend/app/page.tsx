@@ -317,7 +317,7 @@ export default function Dashboard() {
                       placeholder="Define how the AI should behave during the call..."
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      This prompt defines the AI's personality and behavior during the call. Keep it conversational for phone interactions.
+                      This prompt defines the AI s personality and behavior during the call. Keep it conversational for phone interactions.
                     </p>
                   </div>
 
