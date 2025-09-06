@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [activeCall, setActiveCall] = useState<CallStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<string>('');
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
   const API_KEY = 'a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456'; // In production, use environment variable
@@ -31,6 +32,14 @@ export default function Dashboard() {
     checkApiStatus();
     loadKnowledgeBases();
   }, []);
+
+  // Auto-select first knowledge base when available
+  useEffect(() => {
+    if (knowledgeBases.length > 0 && !selectedKnowledgeBase) {
+      setSelectedKnowledgeBase(knowledgeBases[0].id);
+      console.log('Auto-selected knowledge base for calls:', knowledgeBases[0].name);
+    }
+  }, [knowledgeBases, selectedKnowledgeBase]);
 
   const checkApiStatus = async () => {
     try {
@@ -73,7 +82,7 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           phoneNumber: '+916360154904',
-          knowledgeBaseId: knowledgeBases[0]?.id,
+          knowledgeBaseId: selectedKnowledgeBase || knowledgeBases[0]?.id,
           customPrompt: 'You are a helpful customer service representative.',
           voiceConfig: {
             model: 'neural',
@@ -184,6 +193,30 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Management</h2>
             
+            {/* Knowledge Base Selection for Calls */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Knowledge Base for Calls
+              </label>
+              <select
+                value={selectedKnowledgeBase}
+                onChange={(e) => setSelectedKnowledgeBase(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">No Knowledge Base</option>
+                {knowledgeBases.map((kb) => (
+                  <option key={kb.id} value={kb.id}>
+                    {kb.name}
+                  </option>
+                ))}
+              </select>
+              {selectedKnowledgeBase && (
+                <p className="text-xs text-green-600 mt-1">
+                  Selected: {knowledgeBases.find(kb => kb.id === selectedKnowledgeBase)?.name}
+                </p>
+              )}
+            </div>
+
             {activeCall ? (
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">

@@ -7,8 +7,16 @@ const TwilioService = require('../services/twilioService');
 const CallManager = require('../services/callManager');
 const logger = require('../utils/logger');
 
-const twilioService = new TwilioService();
-const callManager = new CallManager();
+// Use singleton instances to ensure shared state
+let twilioService, callManager;
+
+function getServices() {
+  if (!twilioService) {
+    twilioService = new TwilioService();
+    callManager = new CallManager();
+  }
+  return { twilioService, callManager };
+}
 
 // Validation schemas
 const initiateCallSchema = Joi.object({
@@ -25,6 +33,8 @@ const initiateCallSchema = Joi.object({
 // POST /api/calls/initiate - Initiate an outbound call
 router.post('/initiate', async (req, res) => {
   try {
+    const { twilioService, callManager } = getServices();
+    
     const { error, value } = initiateCallSchema.validate(req.body);
     if (error) {
       return res.status(400).json({
@@ -33,7 +43,27 @@ router.post('/initiate', async (req, res) => {
       });
     }
 
-    const { phoneNumber, knowledgeBaseId, customPrompt, voiceConfig } = value;
+    let { phoneNumber, knowledgeBaseId, customPrompt, voiceConfig } = value;
+    
+    // Auto-select first available knowledge base if none specified
+    if (!knowledgeBaseId) {
+      try {
+        const KnowledgeBaseService = require('../services/knowledgeBaseService');
+        const knowledgeBaseService = new KnowledgeBaseService();
+        const availableKnowledgeBases = await knowledgeBaseService.listKnowledgeBases();
+        
+        if (availableKnowledgeBases.length > 0) {
+          knowledgeBaseId = availableKnowledgeBases[0].id;
+          logger.info('Auto-selected knowledge base for call', {
+            knowledgeBaseId,
+            knowledgeBaseName: availableKnowledgeBases[0].name
+          });
+        }
+      } catch (error) {
+        logger.warn('Failed to auto-select knowledge base:', error.message);
+      }
+    }
+    
     const callId = uuidv4();
 
     logger.info('Initiating outbound call', {
@@ -51,23 +81,27 @@ router.post('/initiate', async (req, res) => {
       voiceConfig
     });
 
+    logger.info('Call session created, now initiating Twilio call', {
+      callId,
+      knowledgeBaseId,
+      totalActiveSessions: callManager.activeSessions.size
+    });
     // Initiate Twilio call
     const twilioCall = await twilioService.initiateCall({
       to: phoneNumber,
       callId,
-      webhookUrl: `${process.env.WEBHOOK_BASE_URL || req.protocol + '://' + req.get('host')}/api/webhooks/twilio/voice`
+      webhookUrl: `${req.protocol}://${req.get('host')}/api/webhooks/twilio/voice`
     });
 
     // Update session with Twilio SID
     await callManager.updateTwilioSid(callId, twilioCall.sid);
-    
-    logger.info('Session linked with Twilio SID', {
-      originalCallId: callId,
-      twilioCallSid: twilioCall.sid,
-      sessionExists: !!(await callManager.getSession(callId)),
-      sessionByTwilioSid: !!(await callManager.getSessionByTwilioSid(twilioCall.sid))
-    });
 
+    logger.info('Call initiated successfully with session', {
+      callId,
+      twilioCallSid: twilioCall.sid,
+      knowledgeBaseId,
+      totalActiveSessions: callManager.activeSessions.size
+    });
     res.json({
       success: true,
       callId,
@@ -88,6 +122,8 @@ router.post('/initiate', async (req, res) => {
 // GET /api/calls/:callId/status - Get call status
 router.get('/:callId/status', async (req, res) => {
   try {
+    const { twilioService, callManager } = getServices();
+    
     const { callId } = req.params;
     const callSession = await callManager.getSession(callId);
     
@@ -119,6 +155,8 @@ router.get('/:callId/status', async (req, res) => {
 // POST /api/calls/:callId/end - End an active call
 router.post('/:callId/end', async (req, res) => {
   try {
+    const { twilioService, callManager } = getServices();
+    
     const { callId } = req.params;
     const callSession = await callManager.getSession(callId);
     

@@ -42,6 +42,14 @@ export default function TestingPage() {
     loadKnowledgeBases();
   }, []);
 
+  // Auto-select first knowledge base when available
+  useEffect(() => {
+    if (knowledgeBases.length > 0 && !selectedKnowledgeBase) {
+      setSelectedKnowledgeBase(knowledgeBases[0].id);
+      console.log('Auto-selected knowledge base:', knowledgeBases[0].name);
+    }
+  }, [knowledgeBases, selectedKnowledgeBase]);
+
   const loadSessions = async () => {
     try {
       const response = await fetch(`${API_URL}/api/testing/sessions`, {

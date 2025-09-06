@@ -38,7 +38,9 @@ class ClaudeService {
         logger.warn('Claude API not available, using fallback response');
         return {
           content: this.generateFallbackResponse(message),
-          usage: { input_tokens: 0, output_tokens: 0 }
+          usage: { input_tokens: 0, output_tokens: 0 },
+          knowledgeBaseUsed: false,
+          knowledgeResults: 0
         };
       }
 
@@ -166,7 +168,9 @@ class ClaudeService {
       logger.error('Claude API error (outer):', error);
       return {
         content: this.generateFallbackResponse(message),
-        usage: { input_tokens: 0, output_tokens: 0 }
+        usage: { input_tokens: 0, output_tokens: 0 },
+        knowledgeBaseUsed: false,
+        knowledgeResults: 0
       };
     }
   }
